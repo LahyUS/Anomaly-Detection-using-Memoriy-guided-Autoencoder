@@ -1,0 +1,9 @@
+datasets
+exp
+trained_model
+.vscode
+sandbox-test
+raw-dataset
+__pycache__
+my_trained_model
+venv
