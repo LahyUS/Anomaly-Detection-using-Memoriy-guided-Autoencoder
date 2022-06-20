@@ -18,6 +18,8 @@ matplotlib.use("TkAgg")
 from matplotlib.backends.backend_tkagg import ( FigureCanvasTkAgg, NavigationToolbar2Tk)
 from matplotlib.animation import FuncAnimation
 import pandas as pd 
+from tkinter import filedialog, Text
+import threading 
 
 LARGE_FONT= ("Verdana", 12)
 
@@ -30,52 +32,81 @@ def mini_frame_coord(window_H, window_W, frame_h, frame_w):
 
 class App:
     def __init__(self, window, window_title, video_source=0):
+        # create a window that contains everything on it
         self.window = window  # window = tk.Tk()
-        #self.window.title(window_title)
         self.window.iconbitmap()
-        self.window.wm_title("Anomaly Detection Application")
-
-        # open video source (by default this will try to open the computer webcam)
-        self.video_source = video_source
-        self.vid = VideoCapture(self.video_source)
-
-        # Create a canvas that can fit the above video source size
-        self.canvas_H, self.canvas_W = 300, 900
-        self.canvas_center_H, self.canvas_center_W = self.canvas_H/2, self.canvas_W/2
-        if self.video_source == 0:
-            self.canvas = tk.Canvas(window, width = self.vid.width, height = self.vid.height)
-        else:
-            self.canvas = tk.Canvas(window, width = self.canvas_W, height = self.canvas_H, background="#4E747E")
-        self.canvas.pack()
+        self.window.wm_title("Anomaly Detection Application")  # set title for window
         
-        # Button that lets the user take a snapshot
-        self.btn_snapshot=tk.Button(window, text="Snapshot", width=50, command=self.snapshot)
-        self.btn_snapshot.pack(anchor=tk.CENTER, expand=True)
+        # create canvas to show widget
+        self.set_up_canvas(video_source) 
+        
+        # create button for file loading process
+        self.setup_Buttons()
 
-        # Create an ImgDiff object for do difference on images
+        # create a video source (by default this will try to open the computer webcam)
+        self.vid = VideoCapture(video_source, self.current_data_path)
+
+        # create an ImgDiff object for do difference on images
         self.ImgDiff = id.Image_Difference()
 
-        # bias height and bias width for add mini frames canvas
-        self.bias_h, self.bias_w = mini_frame_coord(self.canvas_H, self.canvas_W, 256, 256)
-
-        # After it is called once, the update method will be automatically called every delay milliseconds
-        self.delay = 10
-        self.iter_frame = 0
-        # used to record the time when we processed last frame
-        self.prev_frame_time = 0
-        # used to record the time at which we processed current frame
-        self.new_frame_time = 0
-
+        # update ktinker canvas
         if video_source == 0:   
             self.update()
         else:
-            #self.show_figure_of_scores_on_frame()
             self.static_update()
-            self.static_update_figure()
+            threading.Thread(target=self.static_update_figure()).start()
 
-        #self.window.after(self.delay, self.static_update)
-        #self.window.after(self.delay, self.static_update_figure)
         self.window.mainloop()
+
+    def set_up_canvas(self, type):
+        # Create a canvas that can fit the above video source size
+        self.canvas_H, self.canvas_W = 350, 1200
+        self.canvas_center_H, self.canvas_center_W = self.canvas_H/2, self.canvas_W/2
+        if type == 0:
+            self.canvas = tk.Canvas(self.window, width = self.vid.width, height = self.vid.height)
+        else:
+            self.canvas = tk.Canvas(self.window, width = self.canvas_W, height = self.canvas_H, background="#4E747E")
+        self.canvas.pack()
+
+        # Setup for timer
+        # After it is called once, the update method will be automatically called every delay milliseconds
+        self.delay = 30
+        self.iter_frame = 0
+        self.prev_frame_time = 0  # used to record the time when we processed last frame
+        self.new_frame_time = 0  # used to record the time at which we processed current frame
+
+        # Set up for showing frames
+        # bias height and bias width for add mini frames canvas
+        self.bias_h, self.bias_w = mini_frame_coord(self.canvas_H, self.canvas_W, 256, 256)
+        self.frame_1_x_axis = 35
+        self.frame_2_x_axis = 35+256+35
+        self.frame_3_x_axis = 35+256+35+256+35
+        self.frame_4_x_axis = 35+256+35+256+35+256+35
+        self.fps = self.canvas.create_text(450, 320, fill="white", font="Times 15 italic bold", text="fps: ")
+        self.frame_th = self.canvas.create_text(550, 320, fill="white", font="Times 15 italic bold", text="frame: ")
+        self.anomaly_tag = self.canvas.create_text(700, 320, fill="white", font="Times 20 italic bold", text="Abnormal: ")
+        self.dataset_name_tag = self.canvas.create_text(35, 320, fill="white", font='Helvatica 20 bold', text="Dataset: Ped2", anchor=tk.NW)
+        
+        # Show name of each kind of showing frame
+        self.canvas.create_text(self.frame_1_x_axis, 10, fill="white", font='Helvatica 20 bold', text="Ground-truth", anchor=tk.NW)
+        self.canvas.create_text(self.frame_2_x_axis, 10, fill="white", font='Helvatica 20 bold', text="Predicted", anchor=tk.NW )
+        self.canvas.create_text(self.frame_3_x_axis, 10, fill="white", font='Helvatica 20 bold', text="Difference", anchor=tk.NW  )
+        self.canvas.create_text(self.frame_4_x_axis, 10, fill="white", font='Helvatica 20 bold', text="Anomaly Regions", anchor=tk.NW)
+        
+    def change_dataset(self):
+        #filename = filedialog.askopenfilename(
+        #    initialdir="/", title="Select file", filetypes=(("image", "*.jpg"), ("image", "*.png"), ("video", "*.avi"), ("all files", "*.*")))
+        folder_path = filedialog.askdirectory()
+        self.current_data_path.append(folder_path)
+        current_dataset_name = folder_path.split('/')[-1]
+        self.canvas.itemconfig(self.dataset_name_tag, fill='white', text= "Dataset: {}".format(current_dataset_name))
+
+    def setup_Buttons(self):
+        self.current_data_path = ['./datasets/Ped2/', ] 
+        # Button that lets the user take a snapshot
+        self.open_dataset=tk.Button(self.window, text="Open Dataset", width=50, command=self.change_dataset,
+                                    fg='white', bg="#263D42")
+        self.open_dataset.pack(anchor=tk.CENTER, expand=True)
 
     def snapshot(self):
         # Get a frame from the video source
@@ -100,32 +131,37 @@ class App:
     def static_update(self):
         # Get a frame from the video source
         test_frame, predicted_frame, anomaly_score = self.vid.get_static_frame(self.iter_frame)
-
+        optimal_threshold = self.vid.opt_threshold
         # Calculate difference image
-        test_img, pred_img, diff_img = self.ImgDiff.image_differences(test_frame, predicted_frame, anomaly_score, self.vid.opt_threshold)
+        test_img_detected, pred_img_detected, diff_img = self.ImgDiff.image_differences(test_frame, predicted_frame, anomaly_score, self.vid.opt_threshold)
 
         # Closes all the frames time when we finish processing for this frame
         self.new_frame_time = time.time()
-
-        # FPS will be number of frame processed in given time frame
-        # since their will be most of time error of 0.001 second
-        # we will be subtracting it to get more accurate result
-        fps = 1/(self.new_frame_time - self.prev_frame_time)
+        fps = 1/(self.new_frame_time - self.prev_frame_time) # Calculate frame per seccond value
         self.prev_frame_time = self.new_frame_time
-        fps = "fps: " + str(int(fps))
-        cv2.putText(test_img, fps, (7, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (100, 255, 0), 1, cv2.LINE_AA)
 
-        # convert opencv narray image to PIL image
-        self.photo_test = ImageTk.PhotoImage(image = Image.fromarray(test_img))
-        self.photo_pred = ImageTk.PhotoImage(image = Image.fromarray(pred_img))
+        # Show information on canvas
+        self.canvas.itemconfig(self.fps, text="fps: {}".format(int(fps)))  # Update fps on canvas
+        self.canvas.itemconfig(self.frame_th, text="frame: {}".format(self.iter_frame))
+        if anomaly_score < optimal_threshold:
+            self.canvas.itemconfig(self.anomaly_tag, fill='red', text="Abnormal: YES")
+        else:
+            self.canvas.itemconfig(self.anomaly_tag, fill='white', text= "Abnormal: NO")
+
+        # Convert opencv narray images to PIL images
+        self.photo_test = ImageTk.PhotoImage(image = Image.fromarray(test_frame))
+        self.photo_pred = ImageTk.PhotoImage(image = Image.fromarray(predicted_frame))
         self.photo_diff = ImageTk.PhotoImage(image = Image.fromarray(diff_img))
+        self.detected_regions = ImageTk.PhotoImage(image = Image.fromarray(test_img_detected))
 
-        # attach test, predicted, difference images on canvas
-        self.canvas.create_image(35, self.bias_h, image = self.photo_test, anchor = tk.NW)
-        self.canvas.create_image(35+256+35, self.bias_h, image = self.photo_pred, anchor = tk.NW)
-        self.canvas.create_image(35+256+35+256+35, self.bias_h, image = self.photo_diff, anchor = tk.NW)
+        # Attach test, predicted, difference and detected_regions images on canvas
+        self.canvas.create_image(self.frame_1_x_axis, self.bias_h, image = self.photo_test, anchor = tk.NW)
+        self.canvas.create_image(self.frame_2_x_axis, self.bias_h, image = self.photo_pred, anchor = tk.NW)
+        self.canvas.create_image(self.frame_3_x_axis, self.bias_h, image = self.photo_diff, anchor = tk.NW)
+        self.canvas.create_image(self.frame_4_x_axis, self.bias_h, image = self.detected_regions, anchor = tk.NW)
 
-        self.window.after(self.delay, self.static_update)
+        # Function callback
+        self.window.after(50, self.static_update)
         if self.iter_frame == 170:
             self.iter_frame = 0
         else:
@@ -188,8 +224,7 @@ class App:
         return plt.gcf()
 
     def static_animate(self, i):
-        anomaly_score_total_list = np.load("./datasets/predicted/anomaly_score.npy")
-        y_score = np.squeeze(anomaly_score_total_list[:self.iter_frame+1])
+        y_score = np.squeeze(self.vid.frame_scores[:self.iter_frame+1])
 
         len = y_score.size
         x = np.arange(0, len)
@@ -202,15 +237,17 @@ class App:
         y_thresh = (y_thresh, y_thresh)
         plt.plot(x, y_score, color="steelblue", label='score/frame')
         plt.plot(x_thresh, y_thresh, color="red", marker = 'o', label="threshold")
-        plt.legend(loc='upper right')
+        plt.plot(len, y_score[len-1], color="green", marker = 'o', label="current_frame")
+        plt.legend(loc='lower left')
+        plt.ylabel('Score')
+        plt.xlabel('Frames')
         plt.tight_layout()
-        #return plt.gcf()
 
     def static_update_figure(self):
         self.figure = plt.figure()            
         self.ax = self.figure.add_subplot(111)
         # Set label for the figure
-        label = tk.Label(text="Anomaly Score Graph!", font=LARGE_FONT)
+        label = tk.Label(text="Anomaly Score Graph", font=LARGE_FONT)
         label.pack(pady=10, padx=10)
         self.ani = FuncAnimation(self.figure, self.static_animate, interval=1000)
         # Create canvas that hold figure
@@ -220,14 +257,15 @@ class App:
         #self.window.after(self.delay, self.static_update_figure)
 
 class VideoCapture:
-    def __init__(self, video_source=0):
-        self.video_source = video_source
+    def __init__(self, video_type=0, data_path=[]):
+        self.data_path = data_path
+        self.type = video_type
         # Open the video source, # capture video by webcam by default 
-        if video_source == 0:
-            self.vid = cv2.VideoCapture(video_source)  
+        if self.type == 0:
+            self.vid = cv2.VideoCapture(self.type)  
             if not self.vid.isOpened():
-                raise ValueError("Unable to open video source", video_source)
-                    
+                raise ValueError("Unable to open video source", self.type)  
+
             # Get video source width and height
             self.width = self.vid.get(cv2.CAP_PROP_FRAME_WIDTH)
             self.height = self.vid.get(cv2.CAP_PROP_FRAME_HEIGHT)
@@ -237,8 +275,10 @@ class VideoCapture:
             test_frames, predicted_framese = self.get_dataset_frames()
             self.vid = [test_frames, predicted_framese]
             # load frame
-            self.frame_scores = np.load("./datasets/predicted/anomaly_score.npy")
-            self.labels = np.load('./data/frame_labels_'+'ped2'+'.npy')
+            #     self.frame_scores = np.load("./datasets/predicted/anomaly_score.npy")
+            #     self.labels = np.load('./data/frame_labels_'+'ped2'+'.npy')
+            self.frame_scores = np.load(self.data_path[-1] + '/predicted/anomaly_score.npy')
+            self.labels = np.load(self.data_path[-1] + 'frame_labels_'+'ped2'+'.npy')
             self.opt_threshold = self.optimalThreshold(self.frame_scores, self.labels)
 
     def get_frame(self):
@@ -284,7 +324,8 @@ class VideoCapture:
                 frame_th = '0' + str(frame_num)
             else:
                 frame_th = str(frame_num)
-            test_input_path.append("./datasets/testing/frames/01/" + frame_th + ".jpg")
+                
+            test_input_path.append(self.data_path[-1] + '/ground_truth/frames/01/' + frame_th + '.jpg')
 
         pred_input_path = []
         for i in range(174):
@@ -296,7 +337,7 @@ class VideoCapture:
                 frame_th = '0' + str(frame_num)
             else:
                 frame_th = str(frame_num)
-            pred_input_path.append("./datasets/predicted/pred/frames/0" + frame_th + ".jpg")
+            pred_input_path.append(self.data_path[-1]+'predicted/frames/0' + frame_th + '.jpg')
 
         test_input_imgs = []
         for i in range(178):
@@ -326,7 +367,7 @@ class VideoCapture:
 
     # Release the video source when the object is destroyed
     def __del__(self):
-        if self.video_source == 0:
+        if self.type == 0:
             if self.vid.isOpened():
                 self.vid.release()
         else:

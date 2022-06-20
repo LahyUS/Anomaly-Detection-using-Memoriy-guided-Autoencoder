@@ -46,24 +46,10 @@ class Image_Difference():
 
                 cv2.rectangle(imgA_clone, (x, y), (x + w, y + h), (255, 0, 0), 2)
                 cv2.rectangle(imgB_clone, (x, y), (x + w, y + h), (255, 0, 0), 2)
-
-            # show the output images
-            #cv2.imshow("Test frame compared", cv2.resize(imageA, None, fx=1, fy=1))
-            #cv2.imwrite("Result_Original.png", imageA)
-            #cv2.imshow("Pred frame compared", cv2.resize(imageB, None, fx=1, fy=1))
-            #cv2.imwrite("Result_Modified.png", imageB)
-            #cv2.imshow("Diff", cv2.resize(diff, None, fx=1, fy=1))
-            #cv2.imwrite("Result_Diff.png", diff)
-            #cv2.imshow("Thresh", cv2.resize(thresh, None, fx=1, fy=1))
-            #cv2.imwrite("Result_Thresh.png", thresh)
-            #cv2.waitKey(0)
+                
             return imgA_clone, imgB_clone, thresh
         else:
             blank_image = np.zeros((256,256,3), np.uint8)
-            #blank_image+=255
-            #cv2.imshow("Test frame compared", cv2.resize(imageA, None, fx=1, fy=1))
-            #cv2.imwrite("Result_Original.png", imageA)
-            #cv2.imshow("Pred frame compared", cv2.resize(imageB, None, fx=1, fy=1))
             return imgA_clone, imgB_clone, blank_image
 
     def image_differences_subtract(self, imageA, imageB, pred_score, threshold):
