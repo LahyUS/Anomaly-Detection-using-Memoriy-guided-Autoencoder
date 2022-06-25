@@ -22,13 +22,16 @@ class Image_Difference():
             # images, ensuring that the difference image is returned
             (score, diff) = structural_similarity(grayA, grayB, full=True)
             diff = (diff * 255).astype("uint8")
-            diff = cv2.GaussianBlur(diff, (7, 7), sigmaX=3, sigmaY=3)
+            diff = cv2.GaussianBlur(diff, (5, 5), sigmaX=3, sigmaY=3)
             #cv2.imshow("diff image", cv2.resize(diff, None, fx=1, fy=1))
             #print("SSIM: {}".format(score))
 
             # threshold the difference image, followed by finding contours to
             # obtain the regions of the two input images that differ
-            thresh = cv2.threshold(diff, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
+            #thresh = cv2.threshold(diff, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
+            threshold_type = cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU
+            threshA = cv2.threshold(diff, 0, 255, threshold_type)
+            thresh = threshA[1]
             #thresh = cv2.threshold(diff, 0, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C)[1]
             cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             cnts = imutils.grab_contours(cnts)
@@ -41,7 +44,7 @@ class Image_Difference():
                 (x, y, w, h) = cv2.boundingRect(c)
 
                 # Remove regions in-significant regions
-                if w < 5 or h < 20:
+                if w <= 15 or h <= 15:
                     continue
 
                 cv2.rectangle(imgA_clone, (x, y), (x + w, y + h), (255, 0, 0), 2)
@@ -63,9 +66,9 @@ class Image_Difference():
 
             # compute the Structural Similarity Index (SSIM) between the two
             # images, ensuring that the difference image is returned
-            (score, diff) = structural_similarity(grayA, grayB, full=True)
+            diff = cv2.subtract(grayA, grayB, full=True)
             diff = (diff * 255).astype("uint8")
-            diff = cv2.GaussianBlur(diff, (7, 7), sigmaX=3, sigmaY=3)
+            diff = cv2.GaussianBlur(diff, (5, 5), sigmaX=3, sigmaY=3)
             #cv2.imshow("diff image", cv2.resize(diff, None, fx=1, fy=1))
             #print("SSIM: {}".format(score))
 
