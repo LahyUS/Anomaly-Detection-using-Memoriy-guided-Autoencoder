@@ -14,7 +14,7 @@ import cv2
 from matplotlib.image import FigureImage
 from sklearn import utils
 from torch import le, sub
-from Image_Similarity import Image_Diff as id
+from image_similarity import ImageDifference as id
 import numpy as np
 from PIL import ImageTk, Image
 import time
@@ -60,7 +60,7 @@ class App:
         self.numPredFrame = len(self.vid.vid[1])
 
         # create an ImgDiff object for do difference on images
-        self.ImgDiff = id.Image_Difference()
+        self.ImgDiff = id.ImageDifference()
 
         # update ktinker canvas
         if video_source == 0:
@@ -163,7 +163,7 @@ class App:
         test_frame, predicted_frame, anomaly_score = self.vid.get_static_frame(self.iter_frame)
         optimal_threshold = self.vid.opt_threshold
         # Calculate difference image
-        test_img_detected, pred_img_detected, diff_img = self.ImgDiff.image_differences(
+        test_img_detected, pred_img_detected, thresholded_img, SSIM_diff_img, SSIM_score = self.ImgDiff.image_differences(
             test_frame, predicted_frame, anomaly_score, self.vid.opt_threshold)
 
         # Closes all the frames time when we finish processing for this frame
@@ -173,10 +173,8 @@ class App:
         self.prev_frame_time = self.new_frame_time
 
         # Show information on canvas
-        self.canvas.itemconfig(self.fps, text="fps: {}".format(
-            int(fps)))  # Update fps on canvas
-        self.canvas.itemconfig(
-            self.frame_th, text="frame: {}".format(self.iter_frame))
+        self.canvas.itemconfig(self.fps, text="fps: {}".format(int(fps)))  # Update fps on canvas
+        self.canvas.itemconfig(self.frame_th, text="frame: {}".format(self.iter_frame))
         if anomaly_score < optimal_threshold:
             self.canvas.itemconfig(
                 self.anomaly_tag, fill='red', text="Abnormal: YES")
@@ -186,11 +184,9 @@ class App:
 
         # Convert opencv narray images to PIL images
         self.photo_test = ImageTk.PhotoImage(image=Image.fromarray(test_frame))
-        self.photo_pred = ImageTk.PhotoImage(
-            image=Image.fromarray(predicted_frame))
-        self.photo_diff = ImageTk.PhotoImage(image=Image.fromarray(diff_img))
-        self.detected_regions = ImageTk.PhotoImage(
-            image=Image.fromarray(test_img_detected))
+        self.photo_pred = ImageTk.PhotoImage(image=Image.fromarray(predicted_frame))
+        self.photo_diff = ImageTk.PhotoImage(image=Image.fromarray(thresholded_img))
+        self.detected_regions = ImageTk.PhotoImage(image=Image.fromarray(test_img_detected))
 
         # Attach test, predicted, difference and detected_regions images on canvas
         self.canvas.create_image(self.frame_1_x_axis, self.bias_h, image=self.photo_test, anchor=tk.NW)
